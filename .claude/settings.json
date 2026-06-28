@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock"
+            "command": "echo '{\"state\":\"happy\"}' | nc -U /tmp/clawd.sock; sleep 3; echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock"
           }
         ]
       }
