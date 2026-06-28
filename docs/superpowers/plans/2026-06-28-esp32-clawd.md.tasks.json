@@ -1,0 +1,46 @@
+{
+  "planPath": "docs/superpowers/plans/2026-06-28-esp32-clawd.md",
+  "tasks": [
+    {
+      "id": 9,
+      "subject": "Task 1: Project Scaffold & Bridge CLI",
+      "status": "pending",
+      "description": "**Goal:** Bridge 프로젝트를 초기화하고 CLI 수신부를 구현한다. `clawd state thinking`을 받아서 내부 이벤트로 변환.\n\n**Files:**\n- Create: `bridge/package.json`\n- Create: `bridge/tsconfig.json`\n- Create: `bridge/src/index.ts`\n- Create: `bridge/src/cli-receiver.ts`\n- Create: `bridge/src/state-cache.ts`\n\n**Acceptance Criteria:**\n- [ ] `npm run dev`로 bridge가 시작되고 Unix socket을 listen\n- [ ] `echo '{\"state\":\"thinking\"}' | nc -U /tmp/clawd.sock` → bridge가 \"thinking\" 로그 출력\n- [ ] 같은 state 연속 전송 시 debounce (두 번째는 무시)\n- [ ] `clawd` CLI 심볼릭 링크가 생성되어 어디서든 실행 가능\n\n**Verify:** `echo '{\"state\":\"thinking\"}' | nc -U /tmp/clawd.sock` → bridge stdout에 `[state] thinking` 출력\n\n```json:metadata\n{\"files\": [\"bridge/package.json\", \"bridge/tsconfig.json\", \"bridge/src/index.ts\", \"bridge/src/cli-receiver.ts\", \"bridge/src/state-cache.ts\"], \"verifyCommand\": \"cd bridge && npm run build && node dist/index.js & sleep 1 && echo '{\\\"state\\\":\\\"thinking\\\"}' | nc -U /tmp/clawd.sock\", \"acceptanceCriteria\": [\"bridge starts and listens on unix socket\", \"state changes logged\", \"debounce prevents duplicate states\"]}\n```"
+    },
+    {
+      "id": 10,
+      "subject": "Task 2: Bridge WebSocket Server + mDNS Discovery",
+      "status": "pending",
+      "blockedBy": [9],
+      "description": "**Goal:** ESP32가 연결할 WebSocket 서버와 mDNS로 ESP32를 자동 발견하는 기능 구현.\n\n**Files:**\n- Create: `bridge/src/ws-server.ts`\n- Create: `bridge/src/mdns.ts`\n- Modify: `bridge/src/index.ts`\n\n**Acceptance Criteria:**\n- [ ] Bridge가 `ws://0.0.0.0:9120`으로 WebSocket listen\n- [ ] ESP32 연결 시 `[ws] client connected` 로그\n- [ ] State 변경 시 연결된 모든 ESP32 클라이언트에 `{\"state\":\"thinking\"}` 브로드캐스트\n- [ ] `--host` CLI 옵션으로 mDNS 없이 직접 IP 지정 가능\n- [ ] mDNS로 `clawd.local` resolve 시도 후 실패 시 `--host` 값 사용\n\n**Verify:** Bridge 실행 후 `websocat ws://localhost:9120` 연결 → `echo '{\"state\":\"happy\"}' | nc -U /tmp/clawd.sock` → websocat에 `{\"state\":\"happy\"}` 수신\n\n```json:metadata\n{\"files\": [\"bridge/src/ws-server.ts\", \"bridge/src/mdns.ts\", \"bridge/src/index.ts\"], \"verifyCommand\": \"cd bridge && npm run build && node dist/index.js & sleep 1 && websocat ws://localhost:9120 & sleep 1 && echo '{\\\"state\\\":\\\"happy\\\"}' | nc -U /tmp/clawd.sock\", \"acceptanceCriteria\": [\"WebSocket server listens on port 9120\", \"state broadcast to all connected clients\", \"mDNS discovery resolves clawd.local\", \"--host fallback works\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 3: ESP32 Firmware Scaffold — WiFi + mDNS + WebSocket Client",
+      "status": "pending",
+      "description": "**Goal:** ESP32 펌웨어 프로젝트를 초기화하고 WiFi 연결, mDNS advertiser, WebSocket client 뼈대를 구현한다. Bridge 연결까지.\n\n**Files:**\n- Create: `firmware/CMakeLists.txt`\n- Create: `firmware/main/CMakeLists.txt`\n- Create: `firmware/main/main.cc`\n- Create: `firmware/main/wifi.h`\n- Create: `firmware/main/wifi.cc`\n- Create: `firmware/main/websocket_client.h`\n- Create: `firmware/main/websocket_client.cc`\n- Create: `firmware/main/state_machine.h`\n- Create: `firmware/main/state_machine.cc`\n- Create: `firmware/sdkconfig.defaults`\n- Create: `firmware/partitions.csv`\n\n**Acceptance Criteria:**\n- [ ] ESP32 WiFi 연결 성공 (시리얼 로그: `[wifi] connected, IP: 192.168.x.x`)\n- [ ] mDNS advertiser 등록 (Bridge에서 `dns-sd -Q clawd.local`로 확인)\n- [ ] WebSocket으로 Bridge에 연결 성공 (시리얼 로그: `[ws] connected to bridge`)\n- [ ] Bridge 종료/재시작 시 ESP32가 자동 재연결\n- [ ] Bridge에서 `{\"state\":\"thinking\"}` 전송 시 ESP32 시리얼에 `[state] thinking` 출력\n\n**Verify:** Bridge 실행 → ESP32 부팅 → 시리얼 모니터에서 WiFi 연결 + WebSocket connected 확인 → `echo '{\"state\":\"error\"}' | nc -U /tmp/clawd.sock` → ESP32 시리얼에 `[state] error` 출력\n\n```json:metadata\n{\"files\": [\"firmware/CMakeLists.txt\", \"firmware/main/CMakeLists.txt\", \"firmware/main/main.cc\", \"firmware/main/wifi.h\", \"firmware/main/wifi.cc\", \"firmware/main/websocket_client.h\", \"firmware/main/websocket_client.cc\", \"firmware/main/state_machine.h\", \"firmware/main/state_machine.cc\", \"firmware/sdkconfig.defaults\", \"firmware/partitions.csv\"], \"verifyCommand\": \"cd firmware && idf.py set-target esp32s3 && idf.py build && idf.py -p /dev/cu.usbmodem* flash monitor\", \"acceptanceCriteria\": [\"WiFi connects and obtains IP\", \"mDNS advertises as clawd.local\", \"WebSocket connects to bridge\", \"auto-reconnect on disconnect\", \"state messages received and logged\"]}\n```"
+    },
+    {
+      "id": 12,
+      "subject": "Task 4: ESP32 Display Driver + GIF Animation Player",
+      "status": "pending",
+      "blockedBy": [11],
+      "description": "**Goal:** ST7789 LCD 디스플레이를 초기화하고, SPIFFS에 저장된 GIF 파일을 읽어 상태별 애니메이션을 재생한다.\n\n**Files:**\n- Create: `firmware/main/display.h`\n- Create: `firmware/main/display.cc`\n- Create: `firmware/main/gif_player.h`\n- Create: `firmware/main/gif_player.cc`\n- Create: `firmware/scripts/flash_assets.sh`\n- Modify: `firmware/main/main.cc`\n- Modify: `firmware/main/CMakeLists.txt`\n\n**Acceptance Criteria:**\n- [ ] ST7789 LCD 초기화 및 화면 출력 확인 (테스트 패턴 또는 단색)\n- [ ] SPIFFS 마운트 및 GIF 파일 읽기\n- [ ] Bridge에서 `{\"state\":\"thinking\"}` 전송 → ESP32가 `/spiffs/thinking.gif` 재생\n- [ ] 상태 변경 시 이전 GIF 정지 후 새 GIF 재생\n- [ ] 에셋 플래시 스크립트: `bash scripts/flash_assets.sh`로 GIF 파일을 SPIFFS에 쓰기\n\n**Verify:** Bridge에서 `echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock` → LCD에 idle.gif 애니메이션 재생. `echo '{\"state\":\"error\"}'` → error.gif로 전환.\n\n```json:metadata\n{\"files\": [\"firmware/main/display.h\", \"firmware/main/display.cc\", \"firmware/main/gif_player.h\", \"firmware/main/gif_player.cc\", \"firmware/scripts/flash_assets.sh\", \"firmware/main/main.cc\", \"firmware/main/CMakeLists.txt\"], \"verifyCommand\": \"cd firmware && idf.py build flash monitor\", \"acceptanceCriteria\": [\"ST7789 initialized and displays content\", \"SPIFFS mounted and GIF files readable\", \"state change triggers correct GIF animation\", \"previous GIF stops before new one starts\", \"flash_assets.sh writes assets to SPIFFS\"]}\n```"
+    },
+    {
+      "id": 13,
+      "subject": "Task 5: Claude Code Hook Integration",
+      "status": "pending",
+      "blockedBy": [9],
+      "description": "**Goal:** Claude Code에서 Hook 이벤트가 발생할 때 `clawd state <name>` CLI를 호출하도록 설정한다.\n\n**Files:**\n- Create: `hooks/claude-hooks.json`\n- Create: `.claude/settings.json`\n\n**Acceptance Criteria:**\n- [ ] Claude Code 세션 시작 시 `clawd state idle` 호출\n- [ ] `PreToolUse` → `clawd state typing`\n- [ ] `PostToolUse` → `clawd state idle`\n- [ ] `Notification` → `clawd state notification`\n- [ ] `Stop` → `clawd state sleeping`\n\n**Verify:** Claude Code 실행 → `clawd-bridge` 백그라운드 실행 → 코딩 중 ESP32가 애니메이션 전환하는지 확인\n\n```json:metadata\n{\"files\": [\"hooks/claude-hooks.json\", \".claude/settings.json\"], \"verifyCommand\": \"cat .claude/settings.json | grep -q clawd && echo 'hooks configured'\", \"acceptanceCriteria\": [\"SessionStart triggers idle state\", \"PreToolUse triggers typing state\", \"PostToolUse returns to idle\", \"Notification triggers notification state\", \"Stop triggers idle state\"]}\n```"
+    },
+    {
+      "id": 14,
+      "subject": "Task 6: Animation Assets & Integration Test",
+      "status": "pending",
+      "blockedBy": [12, 10],
+      "description": "**Goal:** 실제 Clawd on Desk 에셋을 240x240 GIF로 변환하고, 엔드투엔드 통합 테스트를 수행한다.\n\n**Files:**\n- Create: `firmware/assets/idle.gif` through `firmware/assets/subagent_multi.gif` (12 files)\n- Create: `firmware/assets/generate_placeholders.py`\n- Create: `scripts/test_states.sh`\n\n**Acceptance Criteria:**\n- [ ] 모든 12개 상태에 대한 GIF가 240x240 사이즈로 존재\n- [ ] `bash scripts/test_states.sh` 실행 → 각 상태를 2초 간격으로 순회하며 ESP32에서 애니메이션 전환 확인\n- [ ] GIF가 없는 상태는 기본 idle.gif로 fallback\n\n**Verify:** Bridge + ESP32 실행 후 `bash scripts/test_states.sh` → 모든 상태 순회 시 LCD 애니메이션 전환 육안 확인\n\n```json:metadata\n{\"files\": [\"firmware/assets/generate_placeholders.py\", \"scripts/test_states.sh\", \"firmware/assets/*.gif\"], \"verifyCommand\": \"bash scripts/test_states.sh\", \"acceptanceCriteria\": [\"12 placeholder GIFs generated at 240x240\", \"test script cycles through all states\", \"missing GIF falls back to idle.gif\", \"end-to-end: bridge → ESP32 LCD animation visible\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-06-28T00:00:00Z"
+}
