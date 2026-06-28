@@ -1,4 +1,7 @@
 #include "state_machine.h"
+#include <esp_log.h>
+
+static const char *TAG = "state_machine";
 
 struct StateEntry {
     const char *name;
@@ -24,6 +27,7 @@ ClawdState clawd_state_from_string(const std::string &s) {
     for (const auto &entry : kStateMap) {
         if (s == entry.name) return entry.state;
     }
+    ESP_LOGW(TAG, "unknown state string: %s", s.c_str());
     return ClawdState::kIdle;
 }
 

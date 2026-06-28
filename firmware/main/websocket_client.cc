@@ -3,23 +3,34 @@
 #include <esp_log.h>
 #include <cJSON.h>
 #include <string.h>
+#include <atomic>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 static const char *TAG = "ws";
 static esp_websocket_client_handle_t client = nullptr;
 static StateCallback state_callback = nullptr;
 static char url_buffer[256];
-static bool should_reconnect = true;
+static std::atomic<bool> should_reconnect{true};
+static SemaphoreHandle_t ws_mutex = nullptr;
 
 static void ws_event_handler(void *arg, esp_event_base_t base,
                               int32_t id, void *data) {
     auto *ev = (esp_websocket_event_data_t *)data;
+
+    // Snapshot shared state under mutex
+    if (ws_mutex) xSemaphoreTake(ws_mutex, portMAX_DELAY);
+    StateCallback cb = state_callback;
+    bool reconnect = should_reconnect.load();
+    if (ws_mutex) xSemaphoreGive(ws_mutex);
+
     switch (id) {
     case WEBSOCKET_EVENT_CONNECTED:
         ESP_LOGI(TAG, "connected to bridge");
         break;
     case WEBSOCKET_EVENT_DISCONNECTED:
         ESP_LOGW(TAG, "disconnected");
-        if (should_reconnect) {
+        if (reconnect) {
             ESP_LOGI(TAG, "reconnecting in 3s...");
             // Reconnection handled by polling in main loop
         }
@@ -29,11 +40,13 @@ static void ws_event_handler(void *arg, esp_event_base_t base,
             cJSON *root = cJSON_ParseWithLength(ev->data_ptr, ev->data_len);
             if (root) {
                 cJSON *state = cJSON_GetObjectItem(root, "state");
-                if (state && state->valuestring && state_callback) {
-                    state_callback(state->valuestring);
+                if (state && state->valuestring && cb) {
+                    cb(state->valuestring);
                     ESP_LOGI(TAG, "state: %s", state->valuestring);
                 }
                 cJSON_Delete(root);
+            } else {
+                ESP_LOGE(TAG, "json parse failed (len=%d)", ev->data_len);
             }
         }
         break;
@@ -44,8 +57,13 @@ static void ws_event_handler(void *arg, esp_event_base_t base,
 }
 
 esp_err_t ws_client_start(const char *url, StateCallback on_state) {
+    if (ws_mutex == nullptr) {
+        ws_mutex = xSemaphoreCreateMutex();
+    }
+    xSemaphoreTake(ws_mutex, portMAX_DELAY);
+
     state_callback = on_state;
-    strncpy(url_buffer, url, sizeof(url_buffer) - 1);
+    strlcpy(url_buffer, url, sizeof(url_buffer));
     should_reconnect = true;
 
     esp_websocket_client_config_t cfg = {};
@@ -61,14 +79,19 @@ esp_err_t ws_client_start(const char *url, StateCallback on_state) {
     client = esp_websocket_client_init(&cfg);
     esp_websocket_register_events(client, WEBSOCKET_EVENT_ANY, ws_event_handler, nullptr);
     esp_websocket_client_start(client);
+
+    xSemaphoreGive(ws_mutex);
     return ESP_OK;
 }
 
 void ws_client_stop() {
     should_reconnect = false;
+    if (ws_mutex) xSemaphoreTake(ws_mutex, portMAX_DELAY);
     if (client) {
         esp_websocket_client_stop(client);
         esp_websocket_client_destroy(client);
         client = nullptr;
     }
+    state_callback = nullptr;
+    if (ws_mutex) xSemaphoreGive(ws_mutex);
 }

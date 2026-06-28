@@ -2,6 +2,7 @@
 #include <mdns.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/semphr.h>
 #include "wifi.h"
 #include "websocket_client.h"
 #include "state_machine.h"
@@ -31,8 +32,10 @@ extern "C" void app_main() {
     // WiFi
     wifi_init_sta();
 
-    // Wait for WiFi to connect
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    // Wait for WiFi to connect (event-driven, 30s timeout)
+    if (wifi_connected_sem) {
+        xSemaphoreTake(wifi_connected_sem, pdMS_TO_TICKS(30000));
+    }
 
     // mDNS
     init_mdns();
@@ -42,8 +45,6 @@ extern "C" void app_main() {
     snprintf(url, sizeof(url), "ws://%s:%d", BRIDGE_HOST, BRIDGE_PORT);
     ws_client_start(url, on_state);
 
-    // Main loop
-    while (true) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    // Suspend main task - all work is event-driven
+    vTaskSuspend(NULL);
 }
