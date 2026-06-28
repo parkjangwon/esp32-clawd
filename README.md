@@ -1,9 +1,12 @@
 # ESP32 Clawd
 
+<img width="2702" height="2016" alt="image" src="https://github.com/user-attachments/assets/6a273232-8f85-4f19-a604-070f67492746" />
+
+
 A physical hardware companion for Claude Code (and other AI coding agents). The ESP32-S3 with a 240x240 LCD sits on your desk and displays the Clawd mascot, reacting in real-time to your AI agent's state.
 
 ```
-Claude Code → Hook → Bridge → WiFi → ESP32 → LCD + Speaker
+Claude Code → Hook → Bridge → WiFi → ESP32 → LCD
 ```
 
 ## Hardware
