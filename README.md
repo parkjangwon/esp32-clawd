@@ -20,7 +20,22 @@ The ESP32 doesn't run AI — it's a pure **state renderer**. Your coding agent s
 You code → Claude Code processes → Hook fires → Bridge relays → ESP32 animates
 ```
 
-**12 animated states:** idle, thinking, typing, building, error, happy, sleeping, subagent, notification, sweeping, carrying, subagent_multi
+**12 animated states:**
+
+| State | Animation | Trigger |
+|-------|-----------|---------|
+| `idle` | Clawd resting, eye tracking | Default, session start |
+| `thinking` | Thinking/processing | Claude Code processes prompt |
+| `typing` | Keyboard typing | Tool execution (read, write, bash) |
+| `building` | Construction/work | Build/compile activity |
+| `error` | Error/shock | Tool failure, API error |
+| `happy` | Celebration/jumping | Task completion (Stop hook) |
+| `sleeping` | Sleeping/dozing | 60s idle timeout |
+| `subagent` | Headphones groove | 1 subagent launched |
+| `subagent_multi` | Juggling | 2+ subagents launched |
+| `notification` | Alert/attention | Notifications, permission requests |
+| `sweeping` | Cleaning/sweeping | Context compaction |
+| `carrying` | Carrying objects | File operations, worktree create |
 
 ## Quick Start
 
@@ -53,6 +68,7 @@ clawd wifi --ssid "MyWiFi" --pass "password"  # Change WiFi
 |---------|-------------|
 | `./setup.sh` | First-time setup (flash + WiFi config + bridge) |
 | `./start.sh` | Start the bridge |
+| `./stop.sh` | Stop the bridge |
 | `./uninstall.sh` | Stop bridge + remove hooks |
 | `clawd state <name>` | Send a state to ESP32 |
 | `clawd wifi --ssid --pass` | Change WiFi credentials |
