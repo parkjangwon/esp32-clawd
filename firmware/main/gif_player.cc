@@ -1,5 +1,6 @@
 #include "gif_player.h"
 #include "display.h"
+#include "status_bar.h"
 #include <esp_log.h>
 #include <esp_spiffs.h>
 #include <freertos/FreeRTOS.h>
@@ -79,6 +80,7 @@ static void anim_task(void *arg) {
             size_t nread = fread(buf, 1, FRAME_BUF_SIZE, f);
             fclose(f);
             if (nread == FRAME_BUF_SIZE) {
+                status_bar_overlay((uint16_t *)buf, DISPLAY_WIDTH, DISPLAY_HEIGHT);
                 display_draw_bitmap(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, buf);
                 frame_read = true;
             } else {
@@ -172,6 +174,6 @@ esp_err_t gif_player_play(const char *state) {
 
 void gif_player_stop(void) {
     g_current_state[0] = '\0';
-    display_clear(0x0000);
+    display_clear(0x18E5);  // dark navy bg
     ESP_LOGI(TAG, "animation stopped");
 }

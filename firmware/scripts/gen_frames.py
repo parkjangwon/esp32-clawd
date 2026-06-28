@@ -61,7 +61,7 @@ DEFAULT_DELAY_MS = 150  # default per-frame delay
 def write_raw_file(path, color_rgb565):
     """Write a solid-color RGB565 frame image."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    pixel = struct.pack("<H", color_rgb565 & 0xFFFF)
+    pixel = struct.pack(">H", color_rgb565 & 0xFFFF)
     with open(path, "wb") as f:
         for _ in range(WIDTH * HEIGHT):
             f.write(pixel)

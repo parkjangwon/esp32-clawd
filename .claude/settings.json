@@ -3,23 +3,45 @@
     "PostToolUse": [
       {
         "matcher": "",
-        "command": "echo '{\"state\":\"typing\"}' | nc -U /tmp/clawd.sock"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"state\":\"typing\"}' | nc -U /tmp/clawd.sock"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "command": "echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock"
+          }
+        ]
       }
     ],
     "Notification": [
       {
         "matcher": "",
-        "command": "echo '{\"state\":\"notification\"}' | nc -U /tmp/clawd.sock; sleep 3; echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"state\":\"notification\"}' | nc -U /tmp/clawd.sock; sleep 3; echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock"
+          }
+        ]
       }
     ],
     "SessionStart": [
       {
-        "command": "echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"state\":\"idle\"}' | nc -U /tmp/clawd.sock"
+          }
+        ]
       }
     ]
   }

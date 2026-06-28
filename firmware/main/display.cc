@@ -150,6 +150,14 @@ void display_set_backlight(uint8_t percent) {
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 }
 
+void display_sleep(void) {
+    if (panel) esp_lcd_panel_disp_on_off(panel, false);
+}
+
+void display_wake(void) {
+    if (panel) esp_lcd_panel_disp_on_off(panel, true);
+}
+
 void display_clear(uint16_t color) {
     size_t buf_size = LCD_WIDTH * LCD_HEIGHT * 2;
     void *buf = heap_caps_malloc(buf_size, MALLOC_CAP_DMA);
@@ -158,8 +166,9 @@ void display_clear(uint16_t color) {
         return;
     }
     uint16_t *pixels = (uint16_t *)buf;
+    uint16_t swapped = __builtin_bswap16(color);
     for (int i = 0; i < LCD_WIDTH * LCD_HEIGHT; i++) {
-        pixels[i] = color;
+        pixels[i] = swapped;
     }
     display_draw_bitmap(0, 0, LCD_WIDTH, LCD_HEIGHT, buf);
     free(buf);

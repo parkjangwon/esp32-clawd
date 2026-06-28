@@ -13,7 +13,7 @@ export class WsServer {
         console.log('[ws] client disconnected');
         this.clients.delete(ws);
       });
-      ws.on('error', (err) => {
+      ws.on('error', (err: Error) => {
         console.error('[ws] error:', err.message);
         this.clients.delete(ws);
       });
@@ -21,14 +21,28 @@ export class WsServer {
     console.log(`[ws] listening on ws://0.0.0.0:${port}`);
   }
 
+  broadcastRaw(msg: string): void {
+    for (const ws of this.clients) {
+      try {
+        if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+      } catch { this.clients.delete(ws); }
+    }
+  }
+
   broadcast(state: string): void {
     const msg = JSON.stringify({ state });
+    console.log(`[ws] broadcast "${state}" to ${this.clients.size} clients`);
     for (const ws of this.clients) {
       try {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(msg);
+          ws.send(msg, (err?: Error) => {
+            if (err) console.error(`[ws] send error: ${err.message}`);
+          });
+        } else {
+          console.log(`[ws] client not OPEN (state=${ws.readyState})`);
         }
-      } catch {
+      } catch (err: any) {
+        console.error(`[ws] send exception: ${err?.message}`);
         this.clients.delete(ws);
       }
     }

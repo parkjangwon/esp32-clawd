@@ -2,6 +2,9 @@
 #include <esp_websocket_client.h>
 #include <esp_log.h>
 #include <cJSON.h>
+#include <nvs_flash.h>
+#include <nvs.h>
+#include <esp_system.h>
 #include <string.h>
 #include <atomic>
 #include <freertos/FreeRTOS.h>
@@ -36,13 +39,45 @@ static void ws_event_handler(void *arg, esp_event_base_t base,
         }
         break;
     case WEBSOCKET_EVENT_DATA:
-        if (ev->data_len > 0 && !ev->op_code) {  // text frame
+        if (ev->data_len > 0 && ev->op_code != 0x02) {  // not binary frame (handle text + continuation)
             cJSON *root = cJSON_ParseWithLength(ev->data_ptr, ev->data_len);
             if (root) {
                 cJSON *state = cJSON_GetObjectItem(root, "state");
                 if (state && state->valuestring && cb) {
                     cb(state->valuestring);
                     ESP_LOGI(TAG, "state: %s", state->valuestring);
+                }
+                // Check for commands
+                cJSON *cmd = cJSON_GetObjectItem(root, "cmd");
+                if (cmd && cmd->valuestring) {
+                    if (strcmp(cmd->valuestring, "wifi") == 0) {
+                        cJSON *ssid_j = cJSON_GetObjectItem(root, "ssid");
+                        cJSON *pass_j = cJSON_GetObjectItem(root, "pass");
+                        if (ssid_j && ssid_j->valuestring && pass_j && pass_j->valuestring) {
+                            ESP_LOGI(TAG, "WiFi config received: %s", ssid_j->valuestring);
+                            nvs_handle_t h;
+                            if (nvs_open("wifi", NVS_READWRITE, &h) == ESP_OK) {
+                                nvs_set_str(h, "ssid", ssid_j->valuestring);
+                                nvs_set_str(h, "pass", pass_j->valuestring);
+                                nvs_commit(h);
+                                nvs_close(h);
+                                ESP_LOGI(TAG, "WiFi saved, rebooting...");
+                                vTaskDelay(pdMS_TO_TICKS(500));
+                                esp_restart();
+                            }
+                        }
+                    } else if (strcmp(cmd->valuestring, "erase_wifi") == 0) {
+                        ESP_LOGI(TAG, "Erasing WiFi NVS...");
+                        nvs_handle_t h;
+                        if (nvs_open("wifi", NVS_READWRITE, &h) == ESP_OK) {
+                            nvs_erase_all(h);
+                            nvs_commit(h);
+                            nvs_close(h);
+                            ESP_LOGI(TAG, "WiFi NVS erased, rebooting...");
+                            vTaskDelay(pdMS_TO_TICKS(500));
+                            esp_restart();
+                        }
+                    }
                 }
                 cJSON_Delete(root);
             } else {

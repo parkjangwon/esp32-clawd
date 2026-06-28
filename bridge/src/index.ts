@@ -40,12 +40,14 @@ function startServer(wsPort: number) {
           const parsed = JSON.parse(trimmed);
           if (parsed && typeof parsed.state === "string") {
             rawState = parsed.state;
+          } else if (parsed && parsed.cmd) {
+            console.log(`[cmd] forwarding to ESP32: cmd=${parsed.cmd}`);
+            wsServer.broadcastRaw(trimmed);
+            continue;
           } else {
-            // JSON but missing "state" field — try as raw string
             continue;
           }
         } catch {
-          // Not JSON — treat as raw state string
           rawState = trimmed;
         }
 
@@ -61,6 +63,7 @@ function startServer(wsPort: number) {
         }
 
         cache.setState(state);
+        console.log(`[state] ${state}`);
         wsServer.broadcast(state);
         receiver.emit("state", state);
       }
@@ -127,10 +130,28 @@ program
     const normalized = state.toLowerCase().trim();
     if (!isValidState(normalized)) {
       console.error(`[error] invalid state: "${state}"`);
-      console.error(`[error] valid states: idle, thinking, typing, building, error, happy, sleeping, subagent, notification, sweeping, carrying, subagent_multi`);
       process.exit(1);
     }
     sendState(normalized);
+  });
+
+program
+  .command("wifi")
+  .description("Send WiFi credentials to ESP32")
+  .requiredOption("--ssid <ssid>", "WiFi SSID")
+  .requiredOption("--pass <pass>", "WiFi password")
+  .action((opts: { ssid: string; pass: string }) => {
+    const payload = JSON.stringify({ cmd: "wifi", ssid: opts.ssid, pass: opts.pass });
+    const socket = new Socket();
+    socket.connect(SOCKET_PATH, () => {
+      socket.write(payload + "\n");
+      socket.end();
+      console.log(`WiFi config sent: ${opts.ssid}`);
+    });
+    socket.on("error", (err: Error) => {
+      console.error(`[error] cannot connect to bridge: ${err.message}`);
+      process.exit(1);
+    });
   });
 
 // Determine if a subcommand (e.g. "state") was given vs. just options
