@@ -5,10 +5,12 @@ import { unlinkSync, existsSync } from "fs";
 import { Command } from "commander";
 import { CliReceiver, isValidState, ClawdState } from "./cli-receiver.js";
 import { StateCache } from "./state-cache.js";
+import { WsServer } from "./ws-server.js";
+import { discoverEsp32 } from "./mdns.js";
 
 const SOCKET_PATH = "/tmp/clawd.sock";
 
-function startServer() {
+function startServer(wsPort: number) {
   // Clean up stale socket file
   if (existsSync(SOCKET_PATH)) {
     unlinkSync(SOCKET_PATH);
@@ -16,6 +18,7 @@ function startServer() {
 
   const receiver = new CliReceiver();
   const cache = new StateCache();
+  const wsServer = new WsServer(wsPort);
 
   receiver.onState((state: ClawdState) => {
     console.log(`[state] ${state}`);
@@ -62,6 +65,7 @@ function startServer() {
         }
 
         cache.setState(state);
+        wsServer.broadcast(state);
         receiver.emit("state", state);
       }
     });
@@ -83,6 +87,7 @@ function startServer() {
   // Graceful shutdown
   const shutdown = () => {
     console.log("[bridge] shutting down...");
+    wsServer.close();
     server.close(() => {
       if (existsSync(SOCKET_PATH)) {
         unlinkSync(SOCKET_PATH);
@@ -114,7 +119,9 @@ const program = new Command();
 program
   .name("clawd")
   .description("ESP32 Clawd Bridge — relays agent state to hardware")
-  .version("0.1.0");
+  .version("0.1.0")
+  .option('--host <ip>', 'ESP32 IP address (skip mDNS)')
+  .option('--port <port>', 'WebSocket port', '9120');
 
 program
   .command("state")
@@ -130,9 +137,27 @@ program
     sendState(normalized);
   });
 
-// If no arguments, start the server; otherwise run CLI
-if (process.argv.length <= 2) {
-  startServer();
-} else {
+// Determine if a subcommand (e.g. "state") was given vs. just options
+const args = process.argv.slice(2);
+const hasSubcommand = args.some(arg => !arg.startsWith('-'));
+
+if (hasSubcommand) {
   program.parse(process.argv);
+} else {
+  // Manual parse of --host and --port for server mode
+  const hostIdx = args.indexOf('--host');
+  const portIdx = args.indexOf('--port');
+  const host = hostIdx >= 0 && hostIdx + 1 < args.length ? args[hostIdx + 1] : undefined;
+  const port = portIdx >= 0 && portIdx + 1 < args.length ? args[portIdx + 1] : '9120';
+  const wsPort = parseInt(port, 10);
+
+  if (host) {
+    console.log(`[bridge] using explicit host: ${host}`);
+  } else {
+    discoverEsp32('clawd').then(addr => {
+      if (addr) console.log(`[bridge] ESP32 found at ${addr}`);
+    });
+  }
+
+  startServer(wsPort);
 }
