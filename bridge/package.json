@@ -1,0 +1,23 @@
+{
+  "name": "clawd-bridge",
+  "version": "0.1.0",
+  "description": "ESP32 Clawd Bridge — relays agent state to hardware",
+  "main": "dist/index.js",
+  "bin": {
+    "clawd": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch & node --watch dist/index.js",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.10"
+  }
+}
