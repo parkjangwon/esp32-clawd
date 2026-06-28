@@ -24,8 +24,12 @@ export class WsServer {
   broadcast(state: string): void {
     const msg = JSON.stringify({ state });
     for (const ws of this.clients) {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(msg);
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(msg);
+        }
+      } catch {
+        this.clients.delete(ws);
       }
     }
   }

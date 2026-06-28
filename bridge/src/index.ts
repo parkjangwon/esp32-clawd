@@ -3,7 +3,7 @@
 import { createServer, Socket } from "net";
 import { unlinkSync, existsSync } from "fs";
 import { Command } from "commander";
-import { CliReceiver, isValidState, ClawdState } from "./cli-receiver.js";
+import { CliReceiver, isValidState } from "./cli-receiver.js";
 import { StateCache } from "./state-cache.js";
 import { WsServer } from "./ws-server.js";
 import { discoverEsp32 } from "./mdns.js";
@@ -19,10 +19,6 @@ function startServer(wsPort: number) {
   const receiver = new CliReceiver();
   const cache = new StateCache();
   const wsServer = new WsServer(wsPort);
-
-  receiver.onState((state: ClawdState) => {
-    console.log(`[state] ${state}`);
-  });
 
   const server = createServer((socket: Socket) => {
     let buffer = "";
