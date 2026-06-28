@@ -1,6 +1,7 @@
 #include "gif_player.h"
 #include "display.h"
 #include "status_bar.h"
+#include "speaker.h"
 #include <esp_log.h>
 #include <esp_spiffs.h>
 #include <freertos/FreeRTOS.h>
@@ -156,6 +157,11 @@ esp_err_t gif_player_play(const char *state) {
     strlcpy(g_current_state, state, sizeof(g_current_state));
     g_state_version++;
     ESP_LOGI(TAG, "playing animation for state: %s", state);
+
+    // Sound effects for key states
+    if (strcmp(state, "happy") == 0) speaker_success();
+    else if (strcmp(state, "error") == 0) speaker_error();
+    else if (strcmp(state, "notification") == 0) speaker_notify();
 
     char *state_copy = strdup(state);
     if (!state_copy) return ESP_ERR_NO_MEM;

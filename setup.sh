@@ -19,11 +19,20 @@ echo ""
 echo "[2/4] Building & flashing firmware..."
 cd "$ROOT/firmware"
 
-# Inject WiFi credentials into the firmware
+# Auto-detect local IP for bridge
+BRIDGE_IP=$(ipconfig getifaddr en0 2>/dev/null || ifconfig en0 2>/dev/null | grep 'inet ' | awk '{print $2}' | head -1)
+if [ -z "$BRIDGE_IP" ]; then
+    echo "  WARNING: Could not detect local IP. Using fallback."
+    BRIDGE_IP="192.168.1.100"
+fi
+echo "  Bridge IP: $BRIDGE_IP"
+
+# Inject WiFi + Bridge config into the firmware
 cat > main/wifi_config.h << EOF
 #pragma once
 #define WIFI_SSID "$WIFI_SSID"
 #define WIFI_PASS "$WIFI_PASS"
+#define BRIDGE_IP "$BRIDGE_IP"
 EOF
 
 # Source ESP-IDF

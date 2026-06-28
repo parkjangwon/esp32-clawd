@@ -10,11 +10,12 @@
 #include "gif_player.h"
 #include "status_bar.h"
 #include "buttons.h"
+#include "speaker.h"
 
 static const char *TAG = "clawd";
 
-// Bridge connection - mDNS for auto-discovery, fallback to direct IP
-#define BRIDGE_HOST "192.168.0.189"
+// Bridge IP set by setup.sh (auto-detected from Mac's network interface)
+#include "wifi_config.h"
 #define BRIDGE_PORT 9120
 
 static void on_state(const std::string &state) {
@@ -48,6 +49,9 @@ extern "C" void app_main() {
     // Initialize hardware buttons
     buttons_init();
 
+    // Initialize speaker for sound effects
+    speaker_init();
+
     // Initialize GIF player (mount SPIFFS)
     ret = gif_player_init();
     if (ret != ESP_OK) {
@@ -71,7 +75,7 @@ extern "C" void app_main() {
 
     // WebSocket to bridge
     char url[128];
-    snprintf(url, sizeof(url), "ws://%s:%d", BRIDGE_HOST, BRIDGE_PORT);
+    snprintf(url, sizeof(url), "ws://%s:%d", BRIDGE_IP, BRIDGE_PORT);
     ws_client_start(url, on_state);
 
     ESP_LOGI(TAG, "ready");
