@@ -6,6 +6,7 @@
 #include <freertos/task.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 
 static const char *TAG = "gif_player";
@@ -16,7 +17,8 @@ static const char *TAG = "gif_player";
 #define MAX_STATE_LEN  31
 
 // Global state for coordinating with animation tasks
-static volatile char g_current_state[MAX_STATE_LEN + 1] = "";
+static char g_current_state[MAX_STATE_LEN + 1] = "";
+static atomic_uint g_state_version = 0;
 static bool g_spiffs_mounted = false;
 
 // Forward declaration
@@ -59,14 +61,18 @@ static void anim_task(void *arg) {
     }
 
     int frame = 0;
+    uint32_t my_version = g_state_version;
+    int consecutive_failures = 0;
     while (1) {
         // Check if this task is still the active animation
+        if (atomic_load(&g_state_version) != my_version) break;
         if (strcmp((const char *)g_current_state, my_state) != 0) {
             ESP_LOGD(TAG, "state changed, %s task exiting", my_state);
             break;
         }
 
         // Read frame file
+        bool frame_read = false;
         snprintf(path, sizeof(path), "/spiffs/%s/%d.raw", my_state, frame);
         f = fopen(path, "r");
         if (f) {
@@ -74,11 +80,23 @@ static void anim_task(void *arg) {
             fclose(f);
             if (nread == FRAME_BUF_SIZE) {
                 display_draw_bitmap(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, buf);
+                frame_read = true;
             } else {
                 ESP_LOGW(TAG, "short read on %s (%d bytes)", path, nread);
             }
         } else {
             ESP_LOGW(TAG, "frame file not found: %s", path);
+        }
+
+        if (frame_read) {
+            consecutive_failures = 0;
+        } else {
+            consecutive_failures++;
+        }
+
+        if (consecutive_failures >= count) {
+            ESP_LOGW(TAG, "no valid frame files for state=%s, exiting", my_state);
+            break;
         }
 
         frame = (frame + 1) % count;
@@ -133,14 +151,15 @@ esp_err_t gif_player_play(const char *state) {
     }
 
     // Update shared state — old animation tasks will notice and exit
-    strlcpy((char *)g_current_state, state, sizeof(g_current_state));
+    strlcpy(g_current_state, state, sizeof(g_current_state));
+    g_state_version++;
     ESP_LOGI(TAG, "playing animation for state: %s", state);
 
     char *state_copy = strdup(state);
     if (!state_copy) return ESP_ERR_NO_MEM;
 
     TaskHandle_t task = NULL;
-    BaseType_t res = xTaskCreate(anim_task, "gif_anim", 4096,
+    BaseType_t res = xTaskCreate(anim_task, "gif_anim", 6144,
                                   state_copy, 5, &task);
     if (res != pdPASS) {
         free(state_copy);

@@ -81,11 +81,17 @@ esp_err_t display_init(void) {
     ret = esp_lcd_panel_reset(panel);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Panel reset failed: %s", esp_err_to_name(ret));
+        esp_lcd_panel_del(panel);
+        esp_lcd_panel_io_del(io_handle);
+        spi_bus_free(LCD_HOST);
         return ret;
     }
     ret = esp_lcd_panel_init(panel);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Panel init failed: %s", esp_err_to_name(ret));
+        esp_lcd_panel_del(panel);
+        esp_lcd_panel_io_del(io_handle);
+        spi_bus_free(LCD_HOST);
         return ret;
     }
     ESP_LOGI(TAG, "Panel initialized");
