@@ -10,7 +10,6 @@
 #include "gif_player.h"
 #include "status_bar.h"
 #include "buttons.h"
-#include "speaker.h"
 
 static const char *TAG = "clawd";
 
@@ -49,8 +48,6 @@ extern "C" void app_main() {
     // Initialize hardware buttons
     buttons_init();
 
-    // Initialize speaker for sound effects
-    speaker_init();
 
     // Initialize GIF player (mount SPIFFS)
     ret = gif_player_init();
