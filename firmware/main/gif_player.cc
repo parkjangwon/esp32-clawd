@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdatomic.h>
 #include <stdlib.h>
+#include <esp_timer.h>
 
 static const char *TAG = "gif_player";
 
@@ -142,6 +143,13 @@ esp_err_t gif_player_init(void) {
     return ESP_OK;
 }
 
+static void auto_return_cb(void *arg) {
+    const char *state = (const char *)arg;
+    ESP_LOGI(TAG, "auto-return from %s to idle", state);
+    gif_player_play("idle");
+    free(arg);
+}
+
 esp_err_t gif_player_play(const char *state) {
     if (!g_spiffs_mounted) {
         ESP_LOGW(TAG, "SPIFFS not mounted, skipping playback");
@@ -167,6 +175,23 @@ esp_err_t gif_player_play(const char *state) {
         free(state_copy);
         ESP_LOGE(TAG, "failed to create animation task");
         return ESP_FAIL;
+    }
+
+    // Auto-return to idle after timeout for oneshot states
+    if (strcmp(state, "happy") == 0 || strcmp(state, "error") == 0 ||
+        strcmp(state, "notification") == 0 || strcmp(state, "sweeping") == 0 ||
+        strcmp(state, "carrying") == 0) {
+        char *cb_state = strdup(state);
+        if (cb_state) {
+            esp_timer_handle_t timer;
+            esp_timer_create_args_t targs = {
+                .callback = auto_return_cb,
+                .arg = cb_state,
+                .name = "auto_return",
+            };
+            esp_timer_create(&targs, &timer);
+            esp_timer_start_once(timer, 4000000);  // 4 seconds
+        }
     }
 
     return ESP_OK;

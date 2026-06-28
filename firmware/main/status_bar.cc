@@ -188,6 +188,7 @@ void status_bar_start_sntp(void) {
     ESP_LOGI(TAG,"sntp started");
 }
 
+
 void status_bar_update_time(void) {
     time_t now;
     time(&now);
