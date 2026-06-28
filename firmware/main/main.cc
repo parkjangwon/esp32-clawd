@@ -6,6 +6,8 @@
 #include "wifi.h"
 #include "websocket_client.h"
 #include "state_machine.h"
+#include "display.h"
+#include "gif_player.h"
 
 static const char *TAG = "clawd";
 
@@ -16,7 +18,7 @@ static const char *TAG = "clawd";
 static void on_state(const std::string &state) {
     auto s = clawd_state_from_string(state);
     ESP_LOGI(TAG, "state: %s", clawd_state_to_string(s));
-    // TODO: animation playback in Task 4
+    gif_player_play(state.c_str());
 }
 
 static void init_mdns() {
@@ -35,6 +37,21 @@ extern "C" void app_main() {
     // Wait for WiFi to connect (event-driven, 30s timeout)
     if (wifi_connected_sem) {
         xSemaphoreTake(wifi_connected_sem, pdMS_TO_TICKS(30000));
+    }
+
+    // Initialize display (ST7789)
+    esp_err_t ret = display_init();
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "display initialized");
+        display_clear(0x0000);
+    } else {
+        ESP_LOGE(TAG, "display init failed: %s", esp_err_to_name(ret));
+    }
+
+    // Initialize GIF player (mount SPIFFS)
+    ret = gif_player_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "gif_player init failed: %s", esp_err_to_name(ret));
     }
 
     // mDNS
